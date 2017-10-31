@@ -1,4 +1,4 @@
-version: '2'
+version: '3'
 services:
   cron:
     image: fballiano/magento2-cron
@@ -57,17 +57,15 @@ services:
     image: mariadb
     ports:
       - "3306:3306"
-    volumes_from:
-      - dbdata
-    environment:
-
-  dbdata:
-    image: tianon/true
     volumes:
-      - /var/lib/mysql
+      - dbdata:/var/lib/mysql
+    environment:
 
   cache:
     image: fballiano/redis-volatile
 
   clusterdata:
     image: fballiano/redis-volatile
+
+volumes:
+  dbdata:
