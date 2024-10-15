@@ -1,7 +1,7 @@
 version: '3.9'
 services:
   cron:
-    image: nalewczy/magento2-cron-arm64
+    image: nalewczy/magento2-cron-amd64
     depends_on:
       - apache
       - varnish
@@ -21,14 +21,13 @@ services:
         consistency: consistent
 
   ssl:
-    image: nalewczy/nginx-ssl-for-magento2-arm64
+    image: nalewczy/nginx-ssl-for-magento2-amd64
     depends_on:
       - varnish
     links:
       - varnish
     ports:
       - "443:443"
-    platform: linux/arm64
 
   varnish:
     image: varnish:7.1
@@ -46,7 +45,7 @@ services:
       - CACHE_SIZE=256M
 
   apache:
-    image: nalewczy/magento2-apache-php-arm64
+    image: nalewczy/magento2-apache-php-amd64
     environment:
       - MAGENTO_REPO
       - API_KEY
@@ -101,10 +100,10 @@ services:
       - "9200:9200"
 
   cache:
-    image: nalewczy/redis-volatile-arm64
+    image: nalewczy/redis-volatile-amd64
 
   clusterdata:
-    image: nalewczy/redis-volatile-arm64
+    image: nalewczy/redis-volatile-amd64
 
   sessions:
     image: redis:6.2
