@@ -79,6 +79,7 @@ services:
         consistency: delegated
     environment:
       - MYSQL_LOG_BIN_TRUST_FUNCTION_CREATORS=1
+    command: --log-bin-trust-function-creators=1
 
   elasticsearch:
     image: elasticsearch:7.17.17
