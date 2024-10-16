@@ -70,6 +70,7 @@ services:
 
   db:
     image: mysql:8.0
+    container_name: docker-magento2_db_1
     ports:
       - "3306:3306"
     volumes:
