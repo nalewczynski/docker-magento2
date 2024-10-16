@@ -55,6 +55,7 @@ services:
       - CURRENCY
       - ADMIN_EMAIL
       - ADMIN_PASSWORD
+      - MAGENTO_SAMPLE_CONTENT
     depends_on:
       - db
       - cache
