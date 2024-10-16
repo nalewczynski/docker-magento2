@@ -83,6 +83,7 @@ services:
       - MYSQL_USER=magento2
       - MYSQL_PASSWORD=magento2
       - MYSQL_LOG_BIN_TRUST_FUNCTION_CREATORS=1
+    command: --log-bin-trust-function-creators=1
 
   elasticsearch:
     image: elasticsearch:7.17.17
