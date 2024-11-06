@@ -57,6 +57,7 @@ services:
       - ADMIN_EMAIL
       - ADMIN_PASSWORD
       - MAGENTO_SAMPLE_CONTENT
+      - COMPOSE_PROJECT_NAME
     depends_on:
       - db
       - cache
@@ -71,7 +72,7 @@ services:
 
   db:
     image: mysql:8.0
-    container_name: docker-magento2_db_1
+    container_name: ${COMPOSE_PROJECT_NAME}_db_1
     ports:
       - "3306:3306"
     volumes:
