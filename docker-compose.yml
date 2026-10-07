@@ -1,112 +1,114 @@
-version: '3.9'
 services:
-  cron:
-    image: nalewczy/magento2-cron-amd64
+  nginx:
+    build:
+      context: ../docker-nginx-ssl-for-magento2
     depends_on:
-      - apache
-      - varnish
-    links:
-      - db
-      - cache
-      - sessions
-      - clusterdata
-      - apache
-      - varnish
-      - elasticsearch
-    volumes:
-      - html_data:/var/www/html
-      - type: bind
-        source: ./varnish.secret
-        target: /varnish.secret
-        consistency: consistent
-
-  ssl:
-    image: nalewczy/nginx-ssl-for-magento2-amd64
-    depends_on:
-      - varnish
-    links:
-      - varnish
-    ports:
-      - "443:443"
-
-  varnish:
-    image: varnish:7.1
+      - app
     ports:
       - "80:80"
-      - "6082:6082"
-    depends_on:
-      - apache
-    links:
-      - apache
+    restart: unless-stopped
     volumes:
-      - ./varnish.vcl:/etc/varnish/default.vcl
-      - ./varnish.secret:/etc/varnish/secret
-    environment:
-      - CACHE_SIZE=256M
+      - html_data:/var/www/html:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost/healthz >/dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
-  apache:
-    image: nalewczy/magento2-apache-php-amd64
-    environment:
-      - MAGENTO_REPO
-      - API_KEY
-      - API_SECRET
-      - MAGENTO_VERSION
-      - TIMEZONE
-      - CURRENCY
-      - ADMIN_EMAIL
-      - ADMIN_PASSWORD
-      - MAGENTO_SAMPLE_CONTENT
-      - COMPOSE_PROJECT_NAME
+  app:
+    build:
+      context: ../docker-magento2-apache-php
     depends_on:
-      - db
-      - cache
-      - clusterdata
-    links:
       - db
       - cache
       - sessions
-      - clusterdata
+      - opensearch
+    environment:
+      API_KEY: ${API_KEY?API_KEY is required}
+      API_SECRET: ${API_SECRET?API_SECRET is required}
+      ADMIN_EMAIL: ${ADMIN_EMAIL?ADMIN_EMAIL is required}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD?ADMIN_PASSWORD is required}
+      BASE_URL: ${BASE_URL:-http://localhost/}
+      CURRENCY: ${CURRENCY:-USD}
+      DISABLE_2FA: ${DISABLE_2FA:-no}
+      EXTRA_COMPOSER_PACKAGES: ${EXTRA_COMPOSER_PACKAGES:-}
+      STATIC_CONTENT_LOCALES: ${STATIC_CONTENT_LOCALES:-en_US}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-magento2}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD?MYSQL_PASSWORD is required}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD?MYSQL_ROOT_PASSWORD is required}
+      MYSQL_USER: ${MYSQL_USER:-magento2}
+      MAGENTO_REPO: ${MAGENTO_REPO:-http-basic.repo.magento.com}
+      MAGENTO_SAMPLE_CONTENT: ${MAGENTO_SAMPLE_CONTENT:-no}
+      MAGENTO_VERSION: ${MAGENTO_VERSION:-magento/project-community-edition}
+      SEARCH_ENGINE: ${SEARCH_ENGINE:-opensearch}
+      SEARCH_HOST: ${SEARCH_HOST:-opensearch}
+      SEARCH_PORT: ${SEARCH_PORT:-9200}
+      TIMEZONE: ${TIMEZONE:-UTC}
+    expose:
+      - "9000"
+    restart: unless-stopped
+    volumes:
+      - html_data:/var/www/html
+    healthcheck:
+      test: ["CMD", "php-fpm", "-t"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  cron:
+    build:
+      context: ../docker-magento2-cron
+    depends_on:
+      - app
+      - db
+      - cache
+      - sessions
+      - opensearch
+    restart: unless-stopped
     volumes:
       - html_data:/var/www/html
 
   db:
     image: mysql:8.0
-    container_name: ${COMPOSE_PROJECT_NAME}_db_1
-    ports:
-      - "3306:3306"
-    volumes:
-      - type: volume
-        source: dbdata
-        target: /var/lib/mysql
-        consistency: delegated
-    environment:
-      - MYSQL_LOG_BIN_TRUST_FUNCTION_CREATORS=1
     command: --log-bin-trust-function-creators=1
-
-  elasticsearch:
-    image: elasticsearch:7.17.17
     environment:
-      - discovery.type=single-node
-      - bootstrap.memory_lock=true
-      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
-      - xpack.security.enabled=false
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-magento2}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_USER: ${MYSQL_USER:-magento2}
+      MYSQL_LOG_BIN_TRUST_FUNCTION_CREATORS: 1
+    restart: unless-stopped
+    volumes:
+      - dbdata:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  opensearch:
+    image: opensearchproject/opensearch:2.17.1
+    environment:
+      bootstrap.memory_lock: "true"
+      discovery.type: single-node
+      OPENSEARCH_JAVA_OPTS: -Xms1g -Xmx1g
+      DISABLE_SECURITY_PLUGIN: "true"
+      DISABLE_INSTALL_DEMO_CONFIG: "true"
+    mem_limit: 2g
+    restart: unless-stopped
     ulimits:
       memlock:
         soft: -1
         hard: -1
-    mem_limit: 2g
-    ports:
-      - "9300:9300"
-      - "9200:9200"
 
   cache:
-    image: nalewczy/redis-volatile-amd64
-
-  clusterdata:
-    image: nalewczy/redis-volatile-amd64
+    build:
+      context: ../docker-redis-volatile
+    restart: unless-stopped
 
   sessions:
-    image: redis:6.2
+    image: redis:7.2-alpine
+    restart: unless-stopped
 
 volumes:
   dbdata:
